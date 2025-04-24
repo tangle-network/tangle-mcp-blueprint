@@ -13,11 +13,14 @@ keywords.workspace = true
 
 [dependencies]
 blueprint-sdk = { workspace = true, features = ["std", "tangle", "macros"] }
-tokio = { workspace = true, features = ["sync"] }
+tokio = { workspace = true, features = ["sync", "time", "macros"] }
+docktopus = { workspace = true, features = ["deploy"] }
+tracing = { workspace = true }
+rand = "0.8"
 
 [dev-dependencies]
 blueprint-sdk = { workspace = true, features = ["testing", "tangle"] }
-tokio = { workspace = true, features = ["macros"] }
+tokio = { workspace = true, features = ["macros", "rt"] }
 color-eyre = { workspace = true }
 
 [package.metadata.blueprint]
