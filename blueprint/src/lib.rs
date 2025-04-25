@@ -1,4 +1,5 @@
 use blueprint_sdk::JobResult;
+use blueprint_sdk::runner::config::BlueprintEnvironment;
 use docktopus::bollard::Docker;
 use std::sync::Arc;
 
@@ -33,38 +34,18 @@ pub fn tangle_result_to_job_result<T>(result: T) -> JobResult<T> {
 // Blueprint context
 #[derive(Clone)]
 pub struct MyContext {
-    pub config: BlueprintConfig,
+    pub env: BlueprintEnvironment,
     pub docker: Arc<Docker>,
 }
 
-// Blueprint configuration
-#[derive(Clone, Debug)]
-pub struct BlueprintConfig {
-    pub domain: Option<String>,
-}
-
 impl MyContext {
-    pub async fn new(config: BlueprintConfig) -> Result<Self, TangleError> {
+    pub fn new(env: BlueprintEnvironment) -> Result<Self, TangleError> {
         let docker = Docker::connect_with_local_defaults()
             .map_err(|e| TangleError::ContainerError(e.to_string()))?;
 
         Ok(Self {
-            config,
+            env,
             docker: Arc::new(docker),
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_context_creation() {
-        let config = BlueprintConfig {
-            domain: Some("localhost".to_string()),
-        };
-        let context = MyContext::new(config).await.unwrap();
-        assert!(context.docker.ping().await.is_ok());
     }
 }

@@ -2,7 +2,7 @@ use blueprint_sdk::build;
 use blueprint_sdk::tangle::blueprint;
 use std::path::Path;
 use std::process;
-use tangle_mcp_blueprint::say_hello;
+// use tangle_mcp_blueprint::say_hello;
 
 fn main() {
     // Automatically update dependencies with `soldeer` (if available), and build the contracts.
@@ -24,10 +24,10 @@ fn main() {
     // The `blueprint!` macro generates the info necessary for the `blueprint.json`.
     // See its docs for all available metadata fields.
     let blueprint = blueprint! {
-        name: "experiment",
+        name: "tangle-mcp-blueprint",
         master_manager_revision: "Latest",
         manager: { Evm = "HelloBlueprint" },
-        jobs: [say_hello]
+        jobs: []
     };
 
     match blueprint {
@@ -36,12 +36,12 @@ fn main() {
             let json = blueprint_sdk::tangle::metadata::macros::ext::serde_json::to_string_pretty(
                 &blueprint,
             )
-                .unwrap();
+            .unwrap();
             std::fs::write(
                 Path::new(env!("CARGO_WORKSPACE_DIR")).join("blueprint.json"),
                 json.as_bytes(),
             )
-                .unwrap();
+            .unwrap();
         }
         Err(e) => {
             println!("cargo::error={e:?}");

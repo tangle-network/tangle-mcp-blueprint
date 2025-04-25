@@ -11,7 +11,8 @@ use blueprint_sdk::tangle::consumer::TangleConsumer;
 use blueprint_sdk::tangle::filters::MatchesServiceId;
 use blueprint_sdk::tangle::layers::TangleLayer;
 use blueprint_sdk::tangle::producer::TangleProducer;
-use tangle_mcp_blueprint::{MyContext, SAY_HELLO_JOB_ID, say_hello};
+use tangle_mcp_blueprint::MyContext;
+use tangle_mcp_blueprint::{CREATE_PROJECT_JOB_ID, create_project};
 use tower::filter::FilterLayer;
 use tracing::error;
 use tracing::level_filters::LevelFilter;
@@ -23,13 +24,15 @@ async fn main() -> Result<(), blueprint_sdk::Error> {
     let env = BlueprintEnvironment::load()?;
     let sr25519_signer = env.keystore().first_local::<SpSr25519>()?;
     let sr25519_pair = env.keystore().get_secret::<SpSr25519>(&sr25519_signer)?;
-    let st25519_signer = TanglePairSigner::new(sr25519_pair.0);
+    let sr25519_tangle_signer = TanglePairSigner::new(sr25519_pair.0);
 
     let tangle_client = env.tangle_client().await?;
     let tangle_producer =
         TangleProducer::finalized_blocks(tangle_client.rpc_client.clone()).await?;
-    let tangle_consumer = TangleConsumer::new(tangle_client.rpc_client.clone(), st25519_signer);
+    let tangle_consumer =
+        TangleConsumer::new(tangle_client.rpc_client.clone(), sr25519_tangle_signer);
 
+    let context = MyContext::new(env.clone()).unwrap();
     let tangle_config = TangleConfig::default();
 
     let service_id = env.protocol_settings.tangle()?.service_id.unwrap();
@@ -42,7 +45,7 @@ async fn main() -> Result<(), blueprint_sdk::Error> {
             Router::new()
                 // The route defined here has a `TangleLayer`, which adds metadata to the
                 // produced `JobResult`s, making it visible to a `TangleConsumer`.
-                .route(SAY_HELLO_JOB_ID, say_hello.layer(TangleLayer))
+                .route(CREATE_PROJECT_JOB_ID, create_project.layer(TangleLayer))
                 // Add the `FilterLayer` to filter out job calls that don't match the service ID
                 //
                 // This layer is global to the router, and is applied to every job call.
@@ -54,7 +57,7 @@ async fn main() -> Result<(), blueprint_sdk::Error> {
                 //
                 // It is important to note that the context is **cloned** for each job call, so
                 // the context must be cheaply cloneable.
-                .with_context(MyContext::new()),
+                .with_context(context),
         )
         // Add potentially many producers
         //

@@ -6,12 +6,11 @@ use docktopus::bollard::container::{InspectContainerOptions, RemoveContainerOpti
 use docktopus::bollard::models::PortBinding;
 use docktopus::bollard::secret::{ContainerStateStatusEnum, HealthStatusEnum};
 use docktopus::container::Container;
-use rand::Rng;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 // Resource tiers for container allocation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub enum ResourceTier {
     Small,
     Medium,
@@ -45,7 +44,7 @@ impl ResourceTier {
 }
 
 // Input parameters for create_project job
-#[derive(Debug)]
+#[derive(Debug, serde::Deserialize)]
 pub struct CreateProjectParams {
     pub owner_public_key: String,
     pub tier: ResourceTier,
@@ -62,9 +61,9 @@ impl ProjectContainer {
     async fn new(
         docker: Arc<Docker>,
         params: &CreateProjectParams,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         // Allocate a random port between 10000-20000
-        let port = rand::thread_rng().gen_range(10000..20000);
+        let port = 20000;
 
         // Set up port bindings
         let mut port_bindings = HashMap::new();
@@ -108,7 +107,9 @@ impl ProjectContainer {
         })
     }
 
-    async fn start_and_wait_healthy(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    async fn start_and_wait_healthy(
+        &mut self,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Start the container
         self.container.start(false).await?;
 
@@ -177,10 +178,11 @@ impl ProjectContainer {
     }
 }
 
+#[blueprint_sdk::macros::debug_job]
 pub async fn create_project(
     Context(ctx): Context<MyContext>,
     TangleArg(params): TangleArg<CreateProjectParams>,
-) -> Result<TangleResult<String>, Box<dyn std::error::Error>> {
+) -> Result<TangleResult<String>, Box<dyn std::error::Error + Send + Sync>> {
     let docker = ctx.docker.clone();
     let mut project = ProjectContainer::new(docker, &params).await?;
 
@@ -194,16 +196,16 @@ pub async fn create_project(
 
 #[cfg(test)]
 mod tests {
+    use blueprint_sdk::runner::config::BlueprintEnvironment;
+
     use super::*;
-    use crate::{BlueprintConfig, MyContext};
+    use crate::MyContext;
 
     #[tokio::test]
     #[ignore] // Ignored by default as it requires Docker
     async fn test_create_project() {
-        let config = BlueprintConfig {
-            domain: Some("localhost".to_string()),
-        };
-        let _ctx = MyContext::new(config).await.unwrap();
+        let env = BlueprintEnvironment::load().unwrap();
+        let _ctx = MyContext::new(env).unwrap();
 
         let _params = CreateProjectParams {
             owner_public_key: "test_key".to_string(),
