@@ -16,7 +16,7 @@ blueprint-sdk = { workspace = true, features = ["std", "tangle", "macros"] }
 tokio = { workspace = true, features = ["sync", "time", "macros"] }
 docktopus = { workspace = true, features = ["deploy"] }
 tracing = { workspace = true }
-rand = "0.8"
+rand = "0.9"
 
 [dev-dependencies]
 blueprint-sdk = { workspace = true, features = ["testing", "tangle"] }
