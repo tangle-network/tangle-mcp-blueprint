@@ -12,7 +12,9 @@ use blueprint_sdk::tangle::filters::MatchesServiceId;
 use blueprint_sdk::tangle::layers::TangleLayer;
 use blueprint_sdk::tangle::producer::TangleProducer;
 use tangle_mcp_blueprint::MyContext;
-use tangle_mcp_blueprint::{CREATE_PROJECT_JOB_ID, create_project};
+use tangle_mcp_blueprint::{
+    CREATE_PROJECT_JOB_ID, DESTROY_PROJECT_JOB_ID, create_project, destroy_project,
+};
 use tower::filter::FilterLayer;
 use tracing::error;
 use tracing::level_filters::LevelFilter;
@@ -46,6 +48,7 @@ async fn main() -> Result<(), blueprint_sdk::Error> {
                 // The route defined here has a `TangleLayer`, which adds metadata to the
                 // produced `JobResult`s, making it visible to a `TangleConsumer`.
                 .route(CREATE_PROJECT_JOB_ID, create_project.layer(TangleLayer))
+                .route(DESTROY_PROJECT_JOB_ID, destroy_project.layer(TangleLayer))
                 // Add the `FilterLayer` to filter out job calls that don't match the service ID
                 //
                 // This layer is global to the router, and is applied to every job call.

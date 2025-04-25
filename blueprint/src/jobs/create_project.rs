@@ -1,4 +1,4 @@
-use crate::{MyContext, TangleError, tangle_result_to_job_result};
+use crate::MyContext;
 use blueprint_sdk::extract::Context;
 use blueprint_sdk::tangle::extract::{TangleArg, TangleResult};
 use docktopus::bollard::Docker;
