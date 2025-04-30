@@ -14,7 +14,7 @@ keywords.workspace = true
 [dependencies]
 tangle-mcp-blueprint.workspace = true
 
-blueprint-sdk = { workspace = true, features = ["std"] }
+blueprint-sdk = { workspace = true, features = ["std", "tangle", "tracing"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tracing = { workspace = true }
@@ -24,11 +24,11 @@ tower.workspace = true
 tangle-mcp-blueprint.workspace = true
 blueprint-sdk = { workspace = true, features = ["macros", "build"] }
 
-[package.metadata.blueprint]
-sources = [
-  { type = "Native", owner = "tangle-network", repo = "tangle-mcp-blueprint", tag = "0.1.0", binaries = [
-    { arch = "Amd64", os = "Linux", name = "amd64-linux-tangle-mcp-blueprint-gadget" },
-    { arch = "Arm64", os = "Linux", name = "arm64-linux-tangle-mcp-blueprint-gadget" },
-  ] },
-  { type = "Container", registry = "ghcr.io", image = "tangle-network/tangle-mcp-blueprint", tag = "0.1.0" },
-]
+# [package.metadata.blueprint]
+# sources = [
+#   { type = "Native", owner = "tangle-network", repo = "tangle-mcp-blueprint", tag = "0.1.0", binaries = [
+#     { arch = "Amd64", os = "Linux", name = "amd64-linux-tangle-mcp-blueprint-gadget" },
+#     { arch = "Arm64", os = "Linux", name = "arm64-linux-tangle-mcp-blueprint-gadget" },
+#   ] },
+#   { type = "Container", registry = "ghcr.io", image = "tangle-network/tangle-mcp-blueprint", tag = "0.1.0" },
+# ]

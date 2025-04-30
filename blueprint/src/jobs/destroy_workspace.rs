@@ -1,28 +1,19 @@
 use crate::MyContext;
 use blueprint_sdk::extract::Context;
-use blueprint_sdk::tangle::extract::{TangleArg, TangleResult};
+use blueprint_sdk::tangle::extract::{ServiceId, TangleArg, TangleResult};
 use docktopus::bollard::container::RemoveContainerOptions;
-use docktopus::bollard::models::ContainerSummary;
 use std::fs;
 use std::io;
 use std::path::Path;
 
-// Input parameters for destroy_project job
-#[derive(Debug, serde::Deserialize)]
-pub struct DestroyProjectParams {
-    pub service_id: String,
-}
-
 #[blueprint_sdk::macros::debug_job]
-pub async fn destroy_project(
+pub async fn destroy_workspace(
     Context(ctx): Context<MyContext>,
-    TangleArg(params): TangleArg<DestroyProjectParams>,
+    ServiceId(service_id): ServiceId,
+    TangleArg(_): TangleArg<bool>,
 ) -> Result<TangleResult<bool>, Box<dyn std::error::Error + Send + Sync>> {
-    // Get service ID to identify the container
-    let service_id = &params.service_id;
-
-    // The container name follows the pattern: mcp-{service_id}
-    let container_name = format!("mcp-{}", service_id);
+    // The container name follows the pattern: mcp-svc-{service_id}
+    let container_name = format!("mcp-svc-{}", service_id);
 
     // Get all running containers that match our pattern
     let containers = ctx
@@ -85,7 +76,8 @@ pub async fn destroy_project(
 
     // Clean up any persistent data associated with this service
     if let Some(data_dir) = ctx.env.data_dir.as_ref() {
-        let service_data_dir = data_dir.join(service_id);
+        let service_data_dir = data_dir.join("workspaces").join(service_id.to_string());
+        // Check if the directory exists before attempting to remove it
         if service_data_dir.exists() {
             match remove_dir_all(&service_data_dir) {
                 Ok(_) => tracing::info!("Removed data directory for service: {}", service_id),
@@ -114,55 +106,5 @@ fn remove_dir_all(path: &Path) -> io::Result<()> {
         fs::remove_dir(path)
     } else {
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use blueprint_sdk::runner::config::BlueprintEnvironment;
-    use docktopus::container::Container;
-    use uuid::Uuid;
-
-    #[tokio::test]
-    #[ignore] // Ignored by default as it requires Docker
-    async fn test_destroy_project() {
-        // Setup
-        let env = BlueprintEnvironment::load().unwrap();
-        let ctx = MyContext::new(env).unwrap();
-
-        // Create a test container to destroy
-        let service_id = format!("test-{}", Uuid::new_v4());
-        let container_name = format!("mcp-{}", service_id);
-
-        // Create a simple container
-        let container = Container::new(ctx.docker.clone(), "hello-world:latest")
-            .name(&container_name)
-            .create()
-            .await;
-
-        // Only run the actual test if container creation succeeded
-        if let Ok(_) = container {
-            // Now destroy it
-            let params = DestroyProjectParams {
-                service_id: service_id.clone(),
-            };
-
-            let result = destroy_project(Context(ctx.clone()), TangleArg(params)).await;
-
-            assert!(result.is_ok());
-
-            // Verify container is gone
-            let containers = ctx.docker.list_containers(None).await.unwrap();
-            let container_exists = containers.iter().any(|c| {
-                if let Some(names) = &c.names {
-                    names.iter().any(|n| n.contains(&container_name))
-                } else {
-                    false
-                }
-            });
-
-            assert!(!container_exists, "Container should have been removed");
-        }
     }
 }

@@ -13,7 +13,7 @@ use blueprint_sdk::tangle::layers::TangleLayer;
 use blueprint_sdk::tangle::producer::TangleProducer;
 use tangle_mcp_blueprint::MyContext;
 use tangle_mcp_blueprint::{
-    CREATE_PROJECT_JOB_ID, DESTROY_PROJECT_JOB_ID, create_project, destroy_project,
+    CREATE_WORKSPACE_JOB_ID, DESTROY_WORKSPACE_JOB_ID, create_workspace, destroy_workspace,
 };
 use tower::filter::FilterLayer;
 use tracing::error;
@@ -47,8 +47,11 @@ async fn main() -> Result<(), blueprint_sdk::Error> {
             Router::new()
                 // The route defined here has a `TangleLayer`, which adds metadata to the
                 // produced `JobResult`s, making it visible to a `TangleConsumer`.
-                .route(CREATE_PROJECT_JOB_ID, create_project.layer(TangleLayer))
-                .route(DESTROY_PROJECT_JOB_ID, destroy_project.layer(TangleLayer))
+                .route(CREATE_WORKSPACE_JOB_ID, create_workspace.layer(TangleLayer))
+                .route(
+                    DESTROY_WORKSPACE_JOB_ID,
+                    destroy_workspace.layer(TangleLayer),
+                )
                 // Add the `FilterLayer` to filter out job calls that don't match the service ID
                 //
                 // This layer is global to the router, and is applied to every job call.
@@ -91,7 +94,7 @@ async fn main() -> Result<(), blueprint_sdk::Error> {
 pub fn setup_log() {
     use tracing_subscriber::util::SubscriberInitExt;
 
-    let _ = tracing_subscriber::fmt::SubscriberBuilder::default()
+    tracing_subscriber::fmt::SubscriberBuilder::default()
         .without_time()
         .with_span_events(tracing_subscriber::fmt::format::FmtSpan::NONE)
         .with_env_filter(
@@ -100,5 +103,6 @@ pub fn setup_log() {
                 .from_env_lossy(),
         )
         .finish()
-        .try_init();
+        .try_init()
+        .unwrap();
 }

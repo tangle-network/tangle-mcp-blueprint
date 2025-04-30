@@ -11,7 +11,7 @@
       };
     };
     foundry = {
-      url = "github:shazow/foundry.nix/monthly";
+      url = "github:shazow/foundry.nix/stable";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
@@ -19,15 +19,28 @@
     };
   };
 
-  outputs = { self, nixpkgs, rust-overlay, foundry, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      rust-overlay,
+      foundry,
+      flake-utils,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
-        overlays = [ (import rust-overlay) foundry.overlay ];
+        overlays = [
+          (import rust-overlay)
+          foundry.overlay
+        ];
         pkgs = import nixpkgs {
           inherit system overlays;
         };
         lib = pkgs.lib;
-        toolchain = pkgs.rust-bin.stable.latest.default;
+        toolchain = pkgs.rust-bin.stable.latest.default.override {
+          extensions = [ "rust-src" ];
+        };
       in
       {
         devShells.default = pkgs.mkShell {
@@ -55,10 +68,15 @@
             pkgs.cargo-nextest
             pkgs.cargo-expand
           ];
-          packages = [];
+          packages = [ ];
           # Environment variables
           RUST_SRC_PATH = "${toolchain}/lib/rustlib/src/rust/library";
-          LD_LIBRARY_PATH = lib.makeLibraryPath [ pkgs.gmp pkgs.libclang pkgs.openssl.dev ];
+          LD_LIBRARY_PATH = lib.makeLibraryPath [
+            pkgs.gmp
+            pkgs.libclang
+            pkgs.openssl.dev
+          ];
         };
-      });
+      }
+    );
 }

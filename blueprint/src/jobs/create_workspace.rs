@@ -1,6 +1,9 @@
 use crate::MyContext;
+use blueprint_sdk::crypto::BytesEncoding;
+use blueprint_sdk::crypto::sp_core::SpSr25519Public;
 use blueprint_sdk::extract::Context;
-use blueprint_sdk::tangle::extract::{TangleArg, TangleResult};
+use blueprint_sdk::std::{Rng, rand};
+use blueprint_sdk::tangle::extract::{ServiceId, TangleArg, TangleResult};
 use docktopus::bollard::Docker;
 use docktopus::bollard::container::{InspectContainerOptions, RemoveContainerOptions};
 use docktopus::bollard::models::PortBinding;
@@ -10,9 +13,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 // Resource tiers for container allocation
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ResourceTier {
     Small,
+    #[default]
     Medium,
     Large,
 }
@@ -43,27 +48,42 @@ impl ResourceTier {
     }
 }
 
-// Input parameters for create_project job
-#[derive(Debug, serde::Deserialize)]
-pub struct CreateProjectParams {
-    pub owner_public_key: String,
+// Input parameters for create workspace job
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CreateWorkspaceParams {
+    /// Substrate Sr25519 Public Key in ss58 format.
+    pub owner_public_key: SpSr25519Public,
     pub tier: ResourceTier,
+    pub workspace_name: String,
+}
+
+impl Default for CreateWorkspaceParams {
+    fn default() -> Self {
+        Self {
+            owner_public_key: SpSr25519Public::from_bytes(&[0u8; 32]).unwrap(),
+            tier: Default::default(),
+            workspace_name: Default::default(),
+        }
+    }
 }
 
 // Project container configuration
-struct ProjectContainer {
+struct WorkspaceContainer {
     container: Container,
+    service_id: u64,
     port: u16,
     docker: Arc<Docker>,
 }
 
-impl ProjectContainer {
+impl WorkspaceContainer {
     async fn new(
-        docker: Arc<Docker>,
-        params: &CreateProjectParams,
+        ctx: &MyContext,
+        service_id: u64,
+        params: &CreateWorkspaceParams,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let mut rng = rand::rngs::OsRng;
         // Allocate a random port between 10000-20000
-        let port = 20000;
+        let port = rng.gen_range(10000..20000);
 
         // Set up port bindings
         let mut port_bindings = HashMap::new();
@@ -81,20 +101,32 @@ impl ProjectContainer {
             "PORT=3000".to_string(),
         ];
 
-        // Set up bind volumes
-        let bind = format!("size={}", params.tier.storage_limit());
-
         // Create a new container - first create with the image
-        let mut container = Container::new(docker.clone(), "mcp-server:latest");
-
-        // Now add command
-        container = container.cmd(&[String::from("serve")]);
+        let mut container = Container::new(ctx.docker.clone(), "tangle-mcp:0.1.0");
 
         // Add environment variables
         container = container.env(&env);
 
-        // Add bind volumes
-        container = container.binds(&[bind]);
+        // Add port bindings
+        container = container.port_bindings(port_bindings);
+
+        // Add container name
+        container = container.with_name(format!("mcp-svc-{}", service_id));
+
+        // Set up bind volumes
+        let project_id = format!("workspaces/{}", service_id);
+
+        if let Some(ref data_dir) = ctx.env.data_dir {
+            let host_path = format!("{}/{}", data_dir.display(), project_id);
+            std::fs::create_dir_all(&host_path)?;
+            let host_path = std::fs::canonicalize(&host_path)?;
+            let host_path = host_path.display().to_string();
+            // Set up the container path
+            let bind = format!("{}:/blueprint:rw", host_path);
+
+            // Add bind volumes
+            container = container.binds(&[bind]);
+        }
 
         // Create the container
         container.create().await?;
@@ -102,8 +134,9 @@ impl ProjectContainer {
         // Return the object after successful container creation
         Ok(Self {
             container,
+            service_id,
             port,
-            docker: docker.clone(),
+            docker: ctx.docker.clone(),
         })
     }
 
@@ -111,8 +144,10 @@ impl ProjectContainer {
         &mut self,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Start the container
+        blueprint_sdk::info!("Starting container for service ID: {}", self.service_id);
         self.container.start(false).await?;
 
+        blueprint_sdk::info!("Container started, waiting for health check...");
         // Wait for container to be healthy (timeout after 30 seconds)
         let start_time = std::time::Instant::now();
         let timeout = std::time::Duration::from_secs(30);
@@ -120,6 +155,7 @@ impl ProjectContainer {
         while start_time.elapsed() < timeout {
             // Get container status using Docker API directly
             if let Some(container_id) = self.container.id() {
+                blueprint_sdk::info!("Inspecting container: {}", container_id);
                 let inspect_options = InspectContainerOptions { size: false };
 
                 if let Ok(info) = self
@@ -150,10 +186,14 @@ impl ProjectContainer {
                 }
             }
 
+            blueprint_sdk::info!("Container not healthy yet, sleeping...");
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
 
         // Container didn't become healthy in time, clean up with force
+        blueprint_sdk::error!(
+            "Container failed to become healthy within timeout, stopping and removing..."
+        );
         self.container.stop().await?;
 
         // Use a cloned reference to the container ID for removal
@@ -179,40 +219,35 @@ impl ProjectContainer {
 }
 
 #[blueprint_sdk::macros::debug_job]
-pub async fn create_project(
+pub async fn create_workspace(
     Context(ctx): Context<MyContext>,
-    TangleArg(params): TangleArg<CreateProjectParams>,
+    ServiceId(service_id): ServiceId,
+    TangleArg(params): TangleArg<CreateWorkspaceParams>,
 ) -> Result<TangleResult<String>, Box<dyn std::error::Error + Send + Sync>> {
-    let docker = ctx.docker.clone();
-    let mut project = ProjectContainer::new(docker, &params).await?;
+    blueprint_sdk::info!("Creating workspace with params: {:?}", params);
+    blueprint_sdk::info!("Service ID: {}", service_id);
+    let mut workspace = WorkspaceContainer::new(&ctx, service_id, &params).await?;
 
     // Wait for container to be healthy
-    project.start_and_wait_healthy().await?;
+    workspace.start_and_wait_healthy().await?;
 
     // Return the SSE URL
-    let sse = project.get_sse_url("localhost");
+    let sse = workspace.get_sse_url("localhost");
+    blueprint_sdk::info!("SSE URL: {}", sse);
     Ok(TangleResult(sse))
 }
 
 #[cfg(test)]
 mod tests {
-    use blueprint_sdk::runner::config::BlueprintEnvironment;
-
     use super::*;
-    use crate::MyContext;
 
-    #[tokio::test]
-    #[ignore] // Ignored by default as it requires Docker
-    async fn test_create_project() {
-        let env = BlueprintEnvironment::load().unwrap();
-        let _ctx = MyContext::new(env).unwrap();
-
-        let _params = CreateProjectParams {
-            owner_public_key: "test_key".to_string(),
-            tier: ResourceTier::Small,
-        };
-
-        // This is just a test skeleton - actual test implementation would depend
-        // on having Docker and the required images available
+    #[test]
+    fn it_parses_the_args() {
+        let inputs = include_str!("../../tests/create_workspace.json");
+        let parsed_args = serde_json::from_str::<Vec<CreateWorkspaceParams>>(inputs).unwrap();
+        assert!(
+            !parsed_args.is_empty(),
+            "Parsed arguments should not be empty"
+        );
     }
 }

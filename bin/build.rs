@@ -2,6 +2,7 @@ use blueprint_sdk::build;
 use blueprint_sdk::tangle::blueprint;
 use std::path::Path;
 use std::process;
+use tangle_mcp_blueprint::{create_workspace, destroy_workspace};
 // use tangle_mcp_blueprint::say_hello;
 
 fn main() {
@@ -27,7 +28,7 @@ fn main() {
         name: "tangle-mcp-blueprint",
         master_manager_revision: "Latest",
         manager: { Evm = "HelloBlueprint" },
-        jobs: []
+        jobs: [create_workspace, destroy_workspace],
     };
 
     match blueprint {

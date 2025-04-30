@@ -4,7 +4,7 @@ use blueprint_sdk::tangle::serde::to_field;
 use blueprint_sdk::testing::tempfile;
 use blueprint_sdk::testing::utils::setup_log;
 use blueprint_sdk::testing::utils::tangle::TangleTestHarness;
-use tangle_mcp_blueprint::{MyContext, create_project};
+use tangle_mcp_blueprint::{MyContext, create_workspace};
 
 // The number of nodes to spawn in the test
 const N: usize = 1;
@@ -22,7 +22,7 @@ async fn test_blueprint() -> color_eyre::Result<()> {
 
     // Setup the node(s)
     test_env.initialize().await?;
-    test_env.add_job(create_project.layer(TangleLayer)).await;
+    test_env.add_job(create_workspace.layer(TangleLayer)).await;
     let context = MyContext::new(test_env.env()).unwrap();
 
     // Start the test environment. It is now ready to receive job calls.

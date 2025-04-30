@@ -1,9 +1,9 @@
-mod create_project;
-mod destroy_project;
+mod create_workspace;
+mod destroy_workspace;
 
-pub use create_project::{CreateProjectParams, ResourceTier, create_project};
-pub use destroy_project::{DestroyProjectParams, destroy_project};
+pub use create_workspace::{CreateWorkspaceParams, ResourceTier, create_workspace};
+pub use destroy_workspace::destroy_workspace;
 
 // Re-export job IDs
-pub const CREATE_PROJECT_JOB_ID: u32 = 1;
-pub const DESTROY_PROJECT_JOB_ID: u32 = 2;
+pub const CREATE_WORKSPACE_JOB_ID: u32 = 0;
+pub const DESTROY_WORKSPACE_JOB_ID: u32 = 1;

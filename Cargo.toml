@@ -17,11 +17,14 @@ keywords = ["tangle", "blueprint", "avs"]
 [workspace.dependencies]
 tangle-mcp-blueprint = { path = "blueprint" }
 
-blueprint-sdk = { version = "0.1.0-alpha.6", default-features = false }
+blueprint-sdk = { version = "0.1.0-alpha.7", default-features = false }
+# blueprint-sdk = { git = "https://github.com/tangle-network/blueprint.git" }
+# blueprint-sdk = { path = "../gadget/crates/sdk" }
 tokio = { version = "1", default-features = false }
 color-eyre = "0.6"
 tower = { version = "0.5", default-features = false }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing = "0.1"
-docktopus = { version = "0.4.0-alpha.1", default-features = false }
+docktopus = { version = "0.4.0-alpha.1", git = "https://github.com/tangle-network/docktopus.git", branch = "shady/container-names", default-features = false }
 serde = { version = "^1", default-features = false }
+serde_json = { version = "^1", default-features = false }

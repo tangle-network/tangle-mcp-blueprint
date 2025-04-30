@@ -22,6 +22,7 @@ serde = { workspace = true, features = ["derive"] }
 blueprint-sdk = { workspace = true, features = ["testing", "tangle"] }
 tokio = { workspace = true, features = ["macros", "rt"] }
 color-eyre = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
 
 [package.metadata.blueprint]
 manager = { Evm = "ExperimentalBlueprint" }
