@@ -17,7 +17,7 @@ keywords = ["tangle", "blueprint", "avs"]
 [workspace.dependencies]
 tangle-mcp-blueprint = { path = "blueprint" }
 
-blueprint-sdk = { version = "0.1.0-alpha.7", default-features = false }
+blueprint-sdk = { version = "0.1.0-alpha.12", default-features = false }
 # blueprint-sdk = { git = "https://github.com/tangle-network/blueprint.git" }
 # blueprint-sdk = { path = "../gadget/crates/sdk" }
 tokio = { version = "1", default-features = false }
