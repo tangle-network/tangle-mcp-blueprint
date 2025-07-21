@@ -1,5 +1,9 @@
 # <h1 align="center">Hello World Tangle Blueprint 🌐</h1>
 
+> [!WARNING]
+> 
+> THIS REPO IS DEPRECATED AND ARCHIVED IN FAVOR OF [MCP Blueprint](https://github.com/tangle-network/mcp-blueprint)
+
 ## 📚 Overview
 
 This Tangle Blueprint provides a simple Hello World job.
